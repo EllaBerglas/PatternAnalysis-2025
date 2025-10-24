@@ -5,7 +5,10 @@
 
 # Models
 https://arxiv.org/pdf/2107.00645
+https://github.com/facebookresearch/ConvNeXt
+
 https://arxiv.org/pdf/2201.03545 
+
 
 
 # rangpur commands
