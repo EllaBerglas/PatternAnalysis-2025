@@ -1,3 +1,30 @@
+# Conda environment
+    conda create --name COMP3710_Project python=3.10
+    conda activate COMP3710_Project
+    conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
+
+
+# Models
+https://arxiv.org/pdf/2107.00645
+https://arxiv.org/pdf/2201.03545 
+
+
+# rangpur commands
+ssh s4742538@rangpur.compute.eait.uq.edu.au
+
+Copy a file from remote to local:
+scp s4742538@rangpur.compute.eait.uq.edu.au:/alzhiemers_data.zip .
+
+Copy a file from local to remote:
+scp C:\local\path\file.txt username@hostname:/remote/path/
+
+
+
+# Task
+Classify Alzheimer’s disease (normal and AD) of the ADNI brain data (see Appendix for link) using one
+of the latest vision models such as the ConvNeXt [9] or GFNet [10] set having a minimum accuracy of 0.8
+on the test set. [Hard Difficulty]
+
 Original repository: https://github.com/shakes76/PatternAnalysis-2025/ 
 Forked Rpository: https://github.com/EllaBerglas/PatternAnalysis-2025/tree/topic-recognition
 

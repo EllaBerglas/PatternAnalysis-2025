@@ -23,3 +23,8 @@ and address reproduciblility of results
 
 ## Describe any specific pre-processing you have used with references if any. Justify your training, validation
 ## and testing splits of the data.
+
+
+# evaluations
+false negatives are bad, test on each alzheimers and normal to determine tp, fp etc
+medical diagnosis do not want to under diagnose. \
