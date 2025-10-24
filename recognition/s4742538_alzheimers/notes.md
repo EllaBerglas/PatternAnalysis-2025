@@ -1,8 +1,7 @@
 # Conda environment
     conda create --name COMP3710_Project python=3.10
     conda activate COMP3710_Project
-    conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia
-
+    conda install pytorch torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia matplotlib
 
 # Models
 https://arxiv.org/pdf/2107.00645
