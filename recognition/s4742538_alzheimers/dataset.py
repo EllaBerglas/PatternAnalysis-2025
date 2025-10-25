@@ -1,27 +1,13 @@
 """
 Containing the data loader for loading and preprocessing your data
 """
-import os 
 from torchvision import transforms, datasets # type: ignore
 from torch.utils.data import DataLoader, random_split # type: ignore
 import matplotlib # type: ignore 
 matplotlib.use("Agg") # to work in wsl
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np # type: ignore
-
-DATA_ROOT = "./data/AD_NC/"
-TRAIN_DIR = os.path.join(DATA_ROOT, "train")
-# TRAIN_AD = os.path.join(TRAIN_DIR, "AD")
-# TRAIN_NC = os.path.join(TRAIN_DIR, "NC")
-
-TEST_DIR = os.path.join(DATA_ROOT, "test")
-# use these for specific evaluations??
-# TEST_AD = os.path.join(TEST_DIR, "AD")
-# TEST_NC = os.path.join(TEST_DIR, "NC")
-
-CHANNELS = 1
-IMAGE_SIZE = 224
-BATCH_SIZE = 16
+from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME
 
 transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
@@ -61,5 +47,5 @@ img = img * 0.5 + 0.5 # un-normalise
 
 # Convert to numpy and plot
 plt.imshow(img.numpy(), cmap='gray')
-plt.savefig("sample_image.png")
+plt.savefig(SAMPLE_IMAGE_FILENAME)
 print(f"Label {label}")

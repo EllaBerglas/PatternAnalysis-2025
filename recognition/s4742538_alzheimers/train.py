@@ -5,9 +5,10 @@ sure to plot the losses and metrics during training
 """
 import torch  # type: ignore
 from modules import ConvNeXt
-from dataset import test_loader, train_loader, val_loader
+from dataset import train_loader, val_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
+from parameters import MODEL_FILENAME, MODEL_CONFIG
 
 # set gpu
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -16,15 +17,10 @@ print(device)
 # parameters
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
-EPOCHS = 1
+EPOCHS = 4
 
 # set up model
-model = ConvNeXt(
-    in_chans=1, 
-    num_classes=2, 
-    depths=[3, 3, 9, 3], 
-    dims=[96, 192, 384, 768]
-)
+model = ConvNeXt(**MODEL_CONFIG).to(device)
 model = model.to(device)
 
 # set up loss function and optimiser
@@ -45,7 +41,7 @@ for epoch in tqdm(range(EPOCHS)):
     total = 0
 
     # training on train set
-    for batch_idx, (image, label) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Train]")):
+    for batch_id, (image, label) in enumerate(train_loader):
         image = image.to(device)
         label = label.to(device)
         
@@ -74,7 +70,7 @@ for epoch in tqdm(range(EPOCHS)):
 
     # evaluate with validation set after every epoch
     with torch.no_grad():
-        for batch_idx, (image, label) in enumerate(tqdm(val_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Val]")):
+        for batch_id, (image, label) in enumerate(val_loader):
 
             image = image.to(device)
             label = label.to(device)
@@ -96,7 +92,7 @@ for epoch in tqdm(range(EPOCHS)):
 
     print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}")
 
-torch.save(model.state_dict(), "convnext_alzheimer.pth")
+torch.save(model.state_dict(), MODEL_FILENAME)
 print("model saved")
     
 """
