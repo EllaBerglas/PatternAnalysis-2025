@@ -9,53 +9,98 @@ from dataset import test_loader, train_loader, val_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
 
+# set gpu
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
 
+# parameters
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
-EPOCHS = 10
+EPOCHS = 1
 
+# set up model
 model = ConvNeXt(
     in_chans=1, 
     num_classes=2, 
     depths=[3, 3, 9, 3], 
     dims=[96, 192, 384, 768]
 )
+model = model.to(device)
 
+# set up loss function and optimiser
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY) 
 
 train_losses = []
-train_dcs = []
 val_losses = []
-val_dcs = []
 
+train_accs =  []
+val_accs = []
+
+# iterate over each epoch
 for epoch in tqdm(range(EPOCHS)):
     model.train()
+    epoch_train_loss = 0.0
+    correct = 0
+    total = 0
 
-    # training
-    for image, label in enumerate(tqdm(train_loader, position=0, leave=True)):
-        image.to_device(device)
-        label.to_device(device)
+    # training on train set
+    for batch_idx, (image, label) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Train]")):
+        image = image.to(device)
+        label = label.to(device)
         
+        optimizer.zero_grad()
         output = model(image)
         loss = criterion(output, label)
-        loss.backward()  # backpropegation
+        loss.backward()  # backprop
         optimizer.step()
 
-        train_running_loss += loss.item()
-    print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {running_loss/len(train_loader):.4f}")
+        epoch_train_loss += loss.item()
+        
+        _, predicted = torch.max(output, 1)
+        correct += (predicted == label).sum().item()
+        total += label.size(0)
 
+    avg_train_loss = epoch_train_loss / len(train_loader)
+    train_losses.append(avg_train_loss)
+
+    train_acc = correct / total
+    train_accs.append(train_acc)
+
+    epoch_val_loss = 0.0
+    correct = 0
+    total = 0
     model.eval()
+
+    # evaluate with validation set after every epoch
     with torch.no_grad():
-        for image, label in enumerate(tqdm(val_loader, position=0, leave=True)):
-            image.to_device(device)
-            label.to_device(device)
+        for batch_idx, (image, label) in enumerate(tqdm(val_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Val]")):
+
+            image = image.to(device)
+            label = label.to(device)
 
             output = model(image)
             loss = criterion(output, label)
 
-            val_running_loss += loss.item()
+            epoch_val_loss += loss.item()
 
-        print(f"Epoch {epoch+1}/{EPOCHS}, Loss: {running_loss/len(train_loader):.4f}")
+            _, predicted = torch.max(output, 1)
+            correct += (predicted == label).sum().item()
+            total += label.size(0)
+            
+    avg_val_loss = epoch_val_loss / len(val_loader)
+    val_losses.append(avg_val_loss)
+
+    val_acc = correct / total
+    val_accs.append(val_acc)
+
+    print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}")
+
+torch.save(model.state_dict(), "convnext_alzheimer.pth")
+print("model saved")
+    
+"""
+Reload with:
+model.load_state_dict(torch.load("convnext_alzheimer.pth"))
+model.eval()
+"""
