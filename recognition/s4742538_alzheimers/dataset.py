@@ -1,7 +1,6 @@
 """
 Containing the data loader for loading and preprocessing your data
 """
-import torch  # type: ignore
 import os 
 from torchvision import transforms, datasets # type: ignore
 from torch.utils.data import DataLoader, random_split # type: ignore
@@ -9,9 +8,6 @@ import matplotlib # type: ignore
 matplotlib.use("Agg") # to work in wsl
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np # type: ignore
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-print(device)
 
 DATA_ROOT = "./data/AD_NC/"
 TRAIN_DIR = os.path.join(DATA_ROOT, "train")
