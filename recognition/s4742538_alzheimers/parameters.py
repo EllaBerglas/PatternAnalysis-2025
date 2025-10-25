@@ -29,6 +29,13 @@ MODEL_CONFIG = {
     "dims": [96, 192, 384, 768]
 }
 
+# MODEL_CONFIG_BASE = {
+#     "in_chans": 1,
+#     "num_classes": 2,
+#     "depths": [3, 3, 27, 3],
+#     "dims": [128, 256, 512, 1024]
+# }
+
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
 EPOCHS = 20

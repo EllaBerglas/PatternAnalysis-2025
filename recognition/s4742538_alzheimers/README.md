@@ -28,3 +28,10 @@ and address reproduciblility of results
 # evaluations
 false negatives are bad, test on each alzheimers and normal to determine tp, fp etc
 medical diagnosis do not want to under diagnose. \
+
+
+
+# Log
+First started by passing in just the images (and accidentally didnt seperate out the validation images properly whoops) and the test results were bad.
+However, I thought that maybe providing the persons id could help the model use multiple images to determine alzheimers
+
