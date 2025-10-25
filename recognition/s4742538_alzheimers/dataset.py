@@ -57,6 +57,15 @@ print(f"unique persons {len(unique_person_ids)}")
 print(f"train persons {len(train_person_ids)}")
 print(f"val persons {len(val_person_ids)}")
 
+# TODO: turn this to be error checking
+# # I want to make the assumption that each person has 20 images.
+# # yep this holds, for both train and test
+# counts = {pid: len(indices) for pid, indices in person_to_indices.items()}
+# avg_segments = sum(counts.values()) / len(counts)
+# unique_counts = set(counts.values())
+
+# print(f"Average segments per person: {avg_segments:.2f}")
+# print(f"Unique segment counts: {unique_counts}")
 
 # Make data loaders for each
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)

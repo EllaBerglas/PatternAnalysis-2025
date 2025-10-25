@@ -9,7 +9,7 @@ LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
 EPOCHS = 2
 
-MODEL_FILENAME = "E20.pth"
+MODEL_FILENAME = "./models/model_pre_data/E20_06374.pth"
 
 MODEL_CONFIG = {
     "in_chans": 1,
