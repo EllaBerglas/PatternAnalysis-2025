@@ -20,7 +20,7 @@ BATCH_SIZE = 16
 
 SAMPLE_IMAGE_FILENAME = "sample_image.png"
 
-MODEL_FILENAME = "convnext_alzheimer.pth"
+MODEL_FILENAME = "E20.pth"
 
 MODEL_CONFIG = {
     "in_chans": 1,
@@ -28,3 +28,7 @@ MODEL_CONFIG = {
     "depths": [3, 3, 9, 3],
     "dims": [96, 192, 384, 768]
 }
+
+LEARNING_RATE = 1e-4
+WEIGHT_DECAY = 1e-4
+EPOCHS = 20

@@ -8,16 +8,11 @@ from modules import ConvNeXt
 from dataset import train_loader, val_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
-from parameters import MODEL_FILENAME, MODEL_CONFIG
+from parameters import MODEL_FILENAME, MODEL_CONFIG, LEARNING_RATE, WEIGHT_DECAY, EPOCHS
 
 # set gpu
 device = "cuda" if torch.cuda.is_available() else "cpu"
 print(device)
-
-# parameters
-LEARNING_RATE = 1e-4
-WEIGHT_DECAY = 1e-4
-EPOCHS = 4
 
 # set up model
 model = ConvNeXt(**MODEL_CONFIG).to(device)
@@ -41,7 +36,7 @@ for epoch in tqdm(range(EPOCHS)):
     total = 0
 
     # training on train set
-    for batch_id, (image, label) in enumerate(train_loader):
+    for batch_id, (image, label) in tqdm(enumerate(train_loader), desc = "Training"):
         image = image.to(device)
         label = label.to(device)
         
