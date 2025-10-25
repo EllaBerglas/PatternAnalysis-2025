@@ -102,7 +102,7 @@ def main():
     model.load_state_dict(torch.load(MODEL_FILENAME, map_location=device))
 
     eval_accuracy(model, device)
-    eval_accuracy_by_group(model, device)
+    #eval_accuracy_by_group(model, device)
     
 
 if __name__ == "__main__":
