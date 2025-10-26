@@ -9,7 +9,7 @@ from dataset import train_loader, val_loader, test_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
 from torch.optim.lr_scheduler import CosineAnnealingLR #type: ignore
-from parameters import MODEL_FILENAME, MODEL_CONFIG, LEARNING_RATE, WEIGHT_DECAY, EPOCHS
+from parameters import MODEL_FILENAME, MODEL_CONFIG, LEARNING_RATE, WEIGHT_DECAY, EPOCHS, COMPILE
 
 # set gpu
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -18,20 +18,25 @@ print(device)
 # set up model
 model = ConvNeXt(**MODEL_CONFIG).to(device)
 
-if hasattr(torch, 'compile'):
-    model = torch.compile(model)
+if COMPILE:
+    if hasattr(torch, 'compile'):
+        model = torch.compile(model)
 
 # set up loss function and optimiser
-#criterion = nn.CrossEntropyLoss()
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY) 
 scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)
 
 train_losses = []
-val_losses = []
-
 train_accs =  []
+
+val_losses = []
 val_accs = []
+
+# for saving the best model
+best_val_acc = 0.0
+best_val_loss = float("inf")
+best_epoch = -1
 
 # iterate over each epoch
 for epoch in tqdm(range(EPOCHS)):
@@ -48,7 +53,7 @@ for epoch in tqdm(range(EPOCHS)):
         optimizer.zero_grad()
         output = model(image)
         loss = criterion(output, label)
-        loss.backward()  # backprop
+        loss.backward()  
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
@@ -64,8 +69,8 @@ for epoch in tqdm(range(EPOCHS)):
     train_accs.append(train_acc)
 
     epoch_val_loss = 0.0
-    correct = 0
-    total = 0
+    val_correct = 0
+    val_total = 0
     model.eval()
 
     # evaluate with validation set after every epoch
@@ -79,17 +84,27 @@ for epoch in tqdm(range(EPOCHS)):
             loss = criterion(output, label)
 
             epoch_val_loss += loss.item()
-
             _, predicted = torch.max(output, 1)
-            correct += (predicted == label).sum().item()
-            total += label.size(0)
+            val_correct += (predicted == label).sum().item()
+            val_total += label.size(0)
             
     avg_val_loss = epoch_val_loss / len(val_loader)
     val_losses.append(avg_val_loss)
 
-    val_acc = correct / total
+    val_acc = val_correct / val_total
     val_accs.append(val_acc)
 
+    scheduler.step()
+
+    # check if this is the best model so far
+    if val_acc > best_val_acc:  # you can also use `avg_val_loss < best_val_loss`
+        best_val_acc = val_acc
+        best_val_loss = avg_val_loss
+        best_epoch = epoch + 1
+        torch.save(model.state_dict(), MODEL_FILENAME)
+        print(f"model saved E {best_epoch}, best_val_acc: {best_val_acc:.3f}")
+
+    """
     test_losses = []
     test_accs = []
 
@@ -110,18 +125,11 @@ for epoch in tqdm(range(EPOCHS)):
             total += label.size(0)
             
     avg_test_loss = epoch_test_loss / len(val_loader)
-    test_losses.append(avg_test_loss)
+    #test_losses.append(avg_test_loss)
 
     test_acc = correct / total
-    test_accs.append(test_acc)
+    test_acc.append(test_acc)
+    """
 
-    print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}, Test Acc: {test_acc:.3f}")
-
-torch.save(model.state_dict(), MODEL_FILENAME)
-print("model saved")
-    
-"""
-Reload with:
-model.load_state_dict(torch.load("convnext_alzheimer.pth"))
-model.eval()
-"""
+    print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, \
+          Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}")

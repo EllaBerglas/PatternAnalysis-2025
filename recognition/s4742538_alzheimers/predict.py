@@ -10,7 +10,7 @@ from parameters import MODEL_FILENAME
 from tqdm import tqdm # type: ignore
 import numpy as np # type: ignore
 from modules import ConvNeXt
-from parameters import MODEL_CONFIG
+from parameters import MODEL_CONFIG, COMPILE
 
 
 def eval_accuracy(model, device):
@@ -41,8 +41,9 @@ def main():
     print(device)
 
     model = ConvNeXt(**MODEL_CONFIG).to(device)
-    if hasattr(torch, 'compile'):
-        model = torch.compile(model)
+    if COMPILE:
+        if hasattr(torch, 'compile'):
+            model = torch.compile(model)
     model.load_state_dict(torch.load(MODEL_FILENAME, map_location=device))
 
     eval_accuracy(model, device)
