@@ -23,7 +23,7 @@ if hasattr(torch, 'compile'):
 
 # set up loss function and optimiser
 #criterion = nn.CrossEntropyLoss()
-criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+criterion = nn.CrossEntropyLoss()
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY) 
 scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)
 
@@ -49,6 +49,7 @@ for epoch in tqdm(range(EPOCHS)):
         output = model(image)
         loss = criterion(output, label)
         loss.backward()  # backprop
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
 
         epoch_train_loss += loss.item()

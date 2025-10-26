@@ -53,3 +53,32 @@ So, at least to start, I am going to aggregate the slices per person together
 Another thing I could do:
 Train a 2D CNN to extract features from each slice, Aggregate all slice features (mean, max, or an RNN/attention), then Feed that into a final classifier for the subject
 
+
+Unfortunatly this did not help that much
+
+for some reason, test and validation results seem quite different. 
+I get train acc 1.0, val acc 0.75 and test acc 0.58
+Although this is obviously overfitting, I do not understand why there is a significant difference between the validation and test result accuracy. This suggests some sort of data leakage or significant difference of the test set to the training set.
+
+
+Now added the following:
+a different train transformer:
+train_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
+    transforms.Grayscale(num_output_channels=CHANNELS),
+    # Add aggressive augmentations
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomRotation(15),
+    transforms.RandomAffine(degrees=0, translate=(0.1, 0.1), scale=(0.9, 1.1)), #translates and zoom up to 10%
+    transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.1), # random ajustments to brightness
+    transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.9, 1.0)), # randomly crops a little bit
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5], std=[0.5]),
+    transforms.RandomErasing(p=0.2, scale=(0.02, 0.1))  # Random occlusion
+])
+ label smoothing to criteria
+ criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+
+A scheduelr (not much difference on its own from what I can tell)
+
+"drop_path_rate": 0.2  # dropout for residual connections (on colab)

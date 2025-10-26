@@ -14,24 +14,24 @@ BATCH_SIZE = 16
 
 LEARNING_RATE = 5e-5
 WEIGHT_DECAY = 1e-3
-EPOCHS = 20
+EPOCHS = 15
 
-MODEL_FILENAME = f"20Chan_{EPOCHS}.pth"
+MODEL_FILENAME = f"20Chan_{EPOCHS}_tiny_transform.pth"
 
-# MODEL_CONFIG = { # tiny
-#     "in_chans": 20,
-#     "num_classes": 2,
-#     "depths": [3, 3, 9, 3],
-#     "dims": [96, 192, 384, 768]
-# }
-
-MODEL_CONFIG = { # small
+MODEL_CONFIG = { # tiny
     "in_chans": 20,
     "num_classes": 2,
-    "depths": [3, 3, 27, 3],
-    "dims": [96, 192, 384, 768],
-    "drop_path_rate": 0.2  # dropout for residual connections
+    "depths": [3, 3, 9, 3],
+    "dims": [96, 192, 384, 768]
 }
+
+# MODEL_CONFIG = { # small
+#     "in_chans": 20,
+#     "num_classes": 2,
+#     "depths": [3, 3, 27, 3],
+#     "dims": [96, 192, 384, 768],
+#     "drop_path_rate": 0.2  # dropout for residual connections
+# }
 
 # MODEL_CONFIG = { # base
 #     "in_chans": 20,

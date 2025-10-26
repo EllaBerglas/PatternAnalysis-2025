@@ -22,6 +22,20 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.5], std=[0.5])  # pixel values [-1, 1]
 ])
 
+train_transform = transforms.Compose([
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
+    transforms.Grayscale(num_output_channels=CHANNELS),
+    # Add aggressive augmentations
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.RandomRotation(10),
+    transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.95, 1.05)), #translates and zoom up to 10%
+    transforms.ColorJitter(brightness=0.2, contrast=0.2), # random ajustments to brightness
+    #transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.9, 1.0)), # randomly crops a little bit
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.5], std=[0.5]),
+    transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a rectangle region
+])
+
 # Get Images
 train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=None) # do transform in class
 train_class_to_idx = train_val_data.class_to_idx # explicitly assigns labels
@@ -102,7 +116,7 @@ class PersonDataset(Dataset):
         return volume, label
 
 
-train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
+train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform)
 val_dataset = PersonDataset(val_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
 test_dataset = PersonDataset(test_person_ids, test_person_to_slices, test_person_labels, transform)
 
