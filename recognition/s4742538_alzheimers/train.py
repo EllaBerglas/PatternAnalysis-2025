@@ -5,7 +5,7 @@ sure to plot the losses and metrics during training
 """
 import torch  # type: ignore
 from modules import ConvNeXt
-from dataset import train_loader, val_loader
+from dataset import train_loader, val_loader, test_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
 from torch.optim.lr_scheduler import CosineAnnealingLR #type: ignore
@@ -90,7 +90,32 @@ for epoch in tqdm(range(EPOCHS)):
     val_acc = correct / total
     val_accs.append(val_acc)
 
-    print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}")
+    test_losses = []
+    test_accs = []
+
+    # evaluate with validation set after every epoch
+    with torch.no_grad():
+        for batch_id, (image, label) in enumerate(test_loader):
+
+            image = image.to(device)
+            label = label.to(device)
+
+            output = model(image)
+            loss = criterion(output, label)
+
+            epoch_test_loss += loss.item()
+
+            _, predicted = torch.max(output, 1)
+            correct += (predicted == label).sum().item()
+            total += label.size(0)
+            
+    avg_test_loss = epoch_test_loss / len(val_loader)
+    test_losses.append(avg_test_loss)
+
+    test_acc = correct / total
+    test_accs.append(test_acc)
+
+    print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}, Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}, Test Acc: {test_acc:.3f}")
 
 torch.save(model.state_dict(), MODEL_FILENAME)
 print("model saved")
