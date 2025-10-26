@@ -1,18 +1,22 @@
 """
 Containing the data loader for loading and preprocessing your data
 """
-from torchvision import transforms, datasets # type: ignore
-from torch.utils.data import DataLoader, random_split, Subset, Dataset  # type: ignore
-import matplotlib # type: ignore 
-matplotlib.use("Agg") # to work in wsl
-import matplotlib.pyplot as plt  # type: ignore
-import numpy as np # type: ignore
-from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME, NORMALISATION_M, NORMALISATION_SD
 import os
-from sklearn.model_selection import train_test_split # type: ignore 
+import sys
+import numpy as np # type: ignore
 from collections import defaultdict 
 from PIL import Image # type: ignore
 import torch # type: ignore
+from torchvision import transforms, datasets # type: ignore
+from torch.utils.data import DataLoader, random_split, Subset, Dataset  # type: ignore
+from sklearn.model_selection import train_test_split # type: ignore 
+import matplotlib # type: ignore 
+matplotlib.use("Agg") # to work in wsl (no ability to display)
+import matplotlib.pyplot as plt  # type: ignore
+
+from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME, \
+        NORMALISATION_M, NORMALISATION_SD, RANDOM_STATE
+
 
 # reduce image size, convert to tensor, and then normalise
 transform = transforms.Compose([
@@ -22,35 +26,25 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD])  # pixel values [-1, 1]
 ])
 
+# a transform with different data transformations is used for better generalisation
 train_transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.Grayscale(num_output_channels=1),
     transforms.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)),
     transforms.ColorJitter(brightness=0.15, contrast=0.15),  # change brightness and contrast
     transforms.ToTensor(),
-    transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]), # as darker images 
-    transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a rectangle region
+    transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]),
+    transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a small rectangal region
 ])
-
-# train_transform = transforms.Compose([
-#     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
-#     transforms.Grayscale(num_output_channels=CHANNELS),
-#     # Add aggressive augmentations
-#     # transforms.RandomHorizontalFlip(p=0.5),
-#     transforms.RandomRotation(10),
-#     transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.95, 1.05)), #translates and zoom up to 10%
-#     transforms.ColorJitter(brightness=0.2, contrast=0.2), # random ajustments to brightness
-#     #transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.9, 1.0)), # randomly crops a little bit
-#     transforms.ToTensor(),
-#     transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]),
-#     transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a rectangle region
-# ])
 
 # Get Images
 train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=None) # do transform in class
-train_class_to_idx = train_val_data.class_to_idx # explicitly assigns labels
+test_data = datasets.ImageFolder(root=TEST_DIR, transform=None)
+
+train_class_to_idx = train_val_data.class_to_idx # get the labels that are assigned
 print (f"labels assigned: {train_class_to_idx}")
 
+# build a dictionary of patient_ids and their segments
 train_val_person_to_slices = defaultdict(list) #{person1: [1,2,3], person2: [4,5,6]...}
 train_val_person_labels = {}
 for path, label in train_val_data.samples:
@@ -58,12 +52,10 @@ for path, label in train_val_data.samples:
     train_val_person_to_slices[pid].append(path)
     train_val_person_labels[pid] = label
 
-for pid in train_val_person_to_slices: # make sure its in order
+for pid in train_val_person_to_slices: # make sure segments are in order
     train_val_person_to_slices[pid] = sorted(train_val_person_to_slices[pid])
 
-# now for test set
-test_data = datasets.ImageFolder(root=TEST_DIR, transform=None) # do transform in class
-
+# Same as above but for the test set
 test_person_to_slices = defaultdict(list)
 test_person_labels = {}
 
@@ -75,28 +67,15 @@ for path, label in test_data.samples:
 for pid in test_person_to_slices:
     test_person_to_slices[pid] = sorted(test_person_to_slices[pid])
 
-# # extract the person_ids
-# image_paths = [path for path, _ in train_val_data.samples]
-# person_ids = [os.path.basename(path).split("_")[0] for path in image_paths]
-
-# person_to_indices = defaultdict(list) 
-# for idx, pid in enumerate(person_ids):
-#     person_to_indices[pid].append(idx) # stores (persons_id, [list of index's for that persons images])
-
-train_val_unique_person_ids = list(train_val_person_to_slices.keys())
+train_val_person_ids = list(train_val_person_to_slices.keys())
 test_person_ids = list(test_person_to_slices.keys())
 
 train_person_ids, val_person_ids = train_test_split(
-    train_val_unique_person_ids, 
+    train_val_person_ids, 
     test_size=0.2, 
-    random_state=42,
-    stratify=[train_val_person_labels[pid] for pid in train_val_unique_person_ids] # makes it evenly split
+    random_state=RANDOM_STATE,
+    stratify=[train_val_person_labels[pid] for pid in train_val_person_ids] # makes it proportional split
 )
-
-print(f"unique persons {len(train_val_unique_person_ids)}")
-print(f"train persons {len(train_person_ids)}")
-print(f"val persons {len(val_person_ids)}")
-
 
 class PersonDataset(Dataset):
     def __init__(self, person_ids, person_to_slices, person_labels, transform):
@@ -121,16 +100,14 @@ class PersonDataset(Dataset):
             img = img.squeeze(0)  # remove old greyscale channel dim
             slices.append(img)
 
-        # Stack into (20, H, W)
-        volume = torch.stack(slices, dim=0)
+        volume = torch.stack(slices, dim=0) # Stack the slices into (20, H, W)
         return volume, label
 
-
-train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform_light)
+train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform)
 val_dataset = PersonDataset(val_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
 test_dataset = PersonDataset(test_person_ids, test_person_to_slices, test_person_labels, transform)
 
-# sanity check
+# sanity check, this should be the number of patients in each
 print(f"train size {len(train_dataset)}")
 print(f"val size {len(val_dataset)}")
 print(f"test size {len(test_data)}")
@@ -142,12 +119,14 @@ train_loader = DataLoader(train_dataset,
                           num_workers=2,
                           pin_memory=True,
                           persistent_workers=True)
+
 val_loader = DataLoader(val_dataset, 
                         batch_size=BATCH_SIZE, 
                         shuffle=False,
                         num_workers=2,
                         pin_memory=True,
                         persistent_workers=True)
+
 test_loader = DataLoader(test_dataset, 
                          batch_size=BATCH_SIZE, 
                          shuffle=False,
@@ -155,30 +134,28 @@ test_loader = DataLoader(test_dataset,
                          pin_memory=True,
                          persistent_workers=True)
 
+def visualise_image(train_loader):
+    """Visualise first image as a sanity check"""
+    data_iter = iter(train_loader)
+    images, labels = next(data_iter)
 
-"""Visualise first image as a sanity check"""
-# data_iter = iter(train_loader)
-# images, labels = next(data_iter)
+    # look at the first image
+    img = images[0, 0]  # remove batch & channel dims
+    label = labels[0].item()
+    img = img * NORMALISATION_SD + NORMALISATION_M # un-normalise
 
-# # look at the first image
-# img = images[0, 0]  # remove batch & channel dims
-# label = labels[0].item()
+    # Convert to numpy and plot
+    plt.imshow(img.squeeze(0).numpy(), cmap='gray')
+    plt.savefig(SAMPLE_IMAGE_FILENAME)
+    print(f"Label {label}")
 
-# img = img * NORMALISATION_SD + NORMALISATION_M # un-normalise
+#visualise_image(train_loader)
 
-# # Convert to numpy and plot
-# plt.imshow(img.squeeze(0).numpy(), cmap='gray')
-# plt.savefig(SAMPLE_IMAGE_FILENAME)
-# print(f"Label {label}")
-
-
-print(f"Train labels: {sorted(train_val_data.class_to_idx.keys())}")
-print(f"Test labels: {sorted(test_data.class_to_idx.keys())}")
-print(f"Train unique labels: {np.unique([train_val_person_labels[p] for p in train_val_unique_person_ids])}")
-print(f"Test unique labels: {np.unique([test_person_labels[p] for p in test_person_ids])}")
-
-
+"""Ensure there are no patients in bott the test and train set"""
 train_set = set(train_person_ids)
 test_set = set(test_person_ids)
 overlap = train_set & test_set
-print(f"overlap: {overlap}") # no overlapping person ids
+if overlap: # there are overlapping
+    print("there are overlapping patient id's in the test and train set")
+    print(f"overlap: {overlap}") 
+    sys.exit(1)
