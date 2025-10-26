@@ -7,7 +7,7 @@ import matplotlib # type: ignore
 matplotlib.use("Agg") # to work in wsl
 import matplotlib.pyplot as plt  # type: ignore
 import numpy as np # type: ignore
-from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME
+from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME, NORMALISATION_M, NORMALISATION_SD
 import os
 from sklearn.model_selection import train_test_split # type: ignore 
 from collections import defaultdict 
@@ -19,22 +19,32 @@ transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
     transforms.Grayscale(num_output_channels=CHANNELS), 
     transforms.ToTensor(), 
-    transforms.Normalize(mean=[0.5], std=[0.5])  # pixel values [-1, 1]
+    transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD])  # pixel values [-1, 1]
 ])
 
 train_transform = transforms.Compose([
-    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
-    transforms.Grayscale(num_output_channels=CHANNELS),
-    # Add aggressive augmentations
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomRotation(10),
-    transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.95, 1.05)), #translates and zoom up to 10%
-    transforms.ColorJitter(brightness=0.2, contrast=0.2), # random ajustments to brightness
-    #transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.9, 1.0)), # randomly crops a little bit
+    transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+    transforms.Grayscale(num_output_channels=1),
+    transforms.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)),
+    transforms.ColorJitter(brightness=0.15, contrast=0.15),  # change brightness and contrast
     transforms.ToTensor(),
-    transforms.Normalize(mean=[0.5], std=[0.5]),
+    transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]), # as darker images 
     transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a rectangle region
 ])
+
+# train_transform = transforms.Compose([
+#     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)), 
+#     transforms.Grayscale(num_output_channels=CHANNELS),
+#     # Add aggressive augmentations
+#     # transforms.RandomHorizontalFlip(p=0.5),
+#     transforms.RandomRotation(10),
+#     transforms.RandomAffine(degrees=0, translate=(0.05, 0.05), scale=(0.95, 1.05)), #translates and zoom up to 10%
+#     transforms.ColorJitter(brightness=0.2, contrast=0.2), # random ajustments to brightness
+#     #transforms.RandomResizedCrop(IMAGE_SIZE, scale=(0.9, 1.0)), # randomly crops a little bit
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]),
+#     transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a rectangle region
+# ])
 
 # Get Images
 train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=None) # do transform in class
@@ -116,7 +126,7 @@ class PersonDataset(Dataset):
         return volume, label
 
 
-train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform)
+train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform_light)
 val_dataset = PersonDataset(val_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
 test_dataset = PersonDataset(test_person_ids, test_person_to_slices, test_person_labels, transform)
 
@@ -154,7 +164,7 @@ test_loader = DataLoader(test_dataset,
 # img = images[0, 0]  # remove batch & channel dims
 # label = labels[0].item()
 
-# img = img * 0.5 + 0.5 # un-normalise
+# img = img * NORMALISATION_SD + NORMALISATION_M # un-normalise
 
 # # Convert to numpy and plot
 # plt.imshow(img.squeeze(0).numpy(), cmap='gray')

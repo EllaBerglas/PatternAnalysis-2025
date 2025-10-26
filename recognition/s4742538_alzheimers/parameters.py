@@ -9,10 +9,12 @@ Holds general parameters for the project
 DATA_ROOT = "./data/AD_NC/"
 
 CHANNELS = 1 # per image
-IMAGE_SIZE = 256
+IMAGE_SIZE = 384
+NORMALISATION_M = 0.1114
+NORMALISATION_SD = 0.2184
 BATCH_SIZE = 16
 
-LEARNING_RATE = 5e-5
+LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-3
 EPOCHS = 15
 
