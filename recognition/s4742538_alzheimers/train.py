@@ -8,6 +8,7 @@ from modules import ConvNeXt
 from dataset import train_loader, val_loader
 from torch import optim, nn  #type: ignore
 from tqdm import tqdm #type: ignore
+from torch.optim.lr_scheduler import CosineAnnealingLR #type: ignore
 from parameters import MODEL_FILENAME, MODEL_CONFIG, LEARNING_RATE, WEIGHT_DECAY, EPOCHS
 
 # set gpu
@@ -16,11 +17,15 @@ print(device)
 
 # set up model
 model = ConvNeXt(**MODEL_CONFIG).to(device)
-model = model.to(device)
+
+if hasattr(torch, 'compile'):
+    model = torch.compile(model)
 
 # set up loss function and optimiser
-criterion = nn.CrossEntropyLoss()
+#criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 optimizer = optim.AdamW(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY) 
+scheduler = CosineAnnealingLR(optimizer, T_max=EPOCHS, eta_min=1e-6)
 
 train_losses = []
 val_losses = []
@@ -47,7 +52,6 @@ for epoch in tqdm(range(EPOCHS)):
         optimizer.step()
 
         epoch_train_loss += loss.item()
-        
         _, predicted = torch.max(output, 1)
         correct += (predicted == label).sum().item()
         total += label.size(0)

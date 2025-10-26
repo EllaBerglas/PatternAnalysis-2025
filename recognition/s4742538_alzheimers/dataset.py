@@ -112,9 +112,24 @@ print(f"val size {len(val_dataset)}")
 print(f"test size {len(test_data)}")
 
 # Make data loaders for each
-train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+train_loader = DataLoader(train_dataset, 
+                          batch_size=BATCH_SIZE, 
+                          shuffle=True,
+                          num_workers=2,
+                          pin_memory=True,
+                          persistent_workers=True)
+val_loader = DataLoader(val_dataset, 
+                        batch_size=BATCH_SIZE, 
+                        shuffle=False,
+                        num_workers=2,
+                        pin_memory=True,
+                        persistent_workers=True)
+test_loader = DataLoader(test_dataset, 
+                         batch_size=BATCH_SIZE, 
+                         shuffle=False,
+                         num_workers=2,
+                         pin_memory=True,
+                         persistent_workers=True)
 
 
 """Visualise first image as a sanity check"""
@@ -131,3 +146,15 @@ test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 # plt.imshow(img.squeeze(0).numpy(), cmap='gray')
 # plt.savefig(SAMPLE_IMAGE_FILENAME)
 # print(f"Label {label}")
+
+
+print(f"Train labels: {sorted(train_val_data.class_to_idx.keys())}")
+print(f"Test labels: {sorted(test_data.class_to_idx.keys())}")
+print(f"Train unique labels: {np.unique([train_val_person_labels[p] for p in train_val_unique_person_ids])}")
+print(f"Test unique labels: {np.unique([test_person_labels[p] for p in test_person_ids])}")
+
+
+train_set = set(train_person_ids)
+test_set = set(test_person_ids)
+overlap = train_set & test_set
+print(f"overlap: {overlap}") # no overlapping person ids

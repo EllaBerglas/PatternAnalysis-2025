@@ -41,6 +41,8 @@ def main():
     print(device)
 
     model = ConvNeXt(**MODEL_CONFIG).to(device)
+    if hasattr(torch, 'compile'):
+        model = torch.compile(model)
     model.load_state_dict(torch.load(MODEL_FILENAME, map_location=device))
 
     eval_accuracy(model, device)
