@@ -2,7 +2,7 @@
 Containing the data loader for loading and preprocessing your data
 """
 from torchvision import transforms, datasets # type: ignore
-from torch.utils.data import DataLoader, random_split, Subset # type: ignore
+from torch.utils.data import DataLoader, random_split, Subset, Dataset  # type: ignore
 import matplotlib # type: ignore 
 matplotlib.use("Agg") # to work in wsl
 import matplotlib.pyplot as plt  # type: ignore
@@ -11,7 +11,8 @@ from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SA
 import os
 from sklearn.model_selection import train_test_split # type: ignore 
 from collections import defaultdict 
-
+from PIL import Image # type: ignore
+import torch # type: ignore
 
 # reduce image size, convert to tensor, and then normalise
 transform = transforms.Compose([
@@ -22,68 +23,111 @@ transform = transforms.Compose([
 ])
 
 # Get Images
-train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=transform)
-test_data = datasets.ImageFolder(root=TEST_DIR, transform=transform)
+train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=None) # do transform in class
+train_class_to_idx = train_val_data.class_to_idx # explicitly assigns labels
+print (f"labels assigned: {train_class_to_idx}")
 
+train_val_person_to_slices = defaultdict(list) #{person1: [1,2,3], person2: [4,5,6]...}
+train_val_person_labels = {}
+for path, label in train_val_data.samples:
+    pid = os.path.basename(path).split("_")[0]
+    train_val_person_to_slices[pid].append(path)
+    train_val_person_labels[pid] = label
 
-# extrac the person_ids
-image_paths = [path for path, _ in train_val_data.samples]
-person_ids = [os.path.basename(path).split("_")[0] for path in image_paths]
+for pid in train_val_person_to_slices: # make sure its in order
+    train_val_person_to_slices[pid] = sorted(train_val_person_to_slices[pid])
 
-person_to_indices = defaultdict(list) 
-for idx, pid in enumerate(person_ids):
-    person_to_indices[pid].append(idx) # stores (persons_id, [list of index's for that persons images])
+# now for test set
+test_data = datasets.ImageFolder(root=TEST_DIR, transform=None) # do transform in class
 
-unique_person_ids = list(person_to_indices.keys())
+test_person_to_slices = defaultdict(list)
+test_person_labels = {}
+
+for path, label in test_data.samples:
+    pid = os.path.basename(path).split("_")[0]
+    test_person_to_slices[pid].append(path)
+    test_person_labels[pid] = label
+
+for pid in test_person_to_slices:
+    test_person_to_slices[pid] = sorted(test_person_to_slices[pid])
+
+# # extract the person_ids
+# image_paths = [path for path, _ in train_val_data.samples]
+# person_ids = [os.path.basename(path).split("_")[0] for path in image_paths]
+
+# person_to_indices = defaultdict(list) 
+# for idx, pid in enumerate(person_ids):
+#     person_to_indices[pid].append(idx) # stores (persons_id, [list of index's for that persons images])
+
+train_val_unique_person_ids = list(train_val_person_to_slices.keys())
+test_person_ids = list(test_person_to_slices.keys())
 
 train_person_ids, val_person_ids = train_test_split(
-    unique_person_ids, 
+    train_val_unique_person_ids, 
     test_size=0.2, 
-    random_state=42 
-)# better than the other one
+    random_state=42,
+    stratify=[train_val_person_labels[pid] for pid in train_val_unique_person_ids] # makes it evenly split
+)
 
-# make indicies and their datasets for tran and val based on peopleid
-train_indices = [idx for pid in train_person_ids for idx in person_to_indices[pid]]
-val_indices = [idx for pid in val_person_ids for idx in person_to_indices[pid]]
+print(f"unique persons {len(train_val_unique_person_ids)}")
+print(f"train persons {len(train_person_ids)}")
+print(f"val persons {len(val_person_ids)}")
 
-train_dataset = Subset(train_val_data, train_indices)
-val_dataset = Subset(train_val_data, val_indices)
+
+class PersonDataset(Dataset):
+    def __init__(self, person_ids, person_to_slices, person_labels, transform):
+        self.person_ids = person_ids
+        self.person_to_slices = person_to_slices
+        self.person_labels = person_labels
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.person_ids)
+
+    def __getitem__(self, idx):
+        pid = self.person_ids[idx]
+        slice_paths = self.person_to_slices[pid]
+        label = self.person_labels[pid]
+
+        slices = []
+        for path in slice_paths:
+            img = Image.open(path).convert('L')
+            if self.transform:
+                img = self.transform(img)
+            img = img.squeeze(0)  # remove old greyscale channel dim
+            slices.append(img)
+
+        # Stack into (20, H, W)
+        volume = torch.stack(slices, dim=0)
+        return volume, label
+
+
+train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
+val_dataset = PersonDataset(val_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
+test_dataset = PersonDataset(test_person_ids, test_person_to_slices, test_person_labels, transform)
 
 # sanity check
 print(f"train size {len(train_dataset)}")
 print(f"val size {len(val_dataset)}")
 print(f"test size {len(test_data)}")
-print(f"unique persons {len(unique_person_ids)}")
-print(f"train persons {len(train_person_ids)}")
-print(f"val persons {len(val_person_ids)}")
-
-# TODO: turn this to be error checking
-# # I want to make the assumption that each person has 20 images.
-# # yep this holds, for both train and test
-# counts = {pid: len(indices) for pid, indices in person_to_indices.items()}
-# avg_segments = sum(counts.values()) / len(counts)
-# unique_counts = set(counts.values())
-
-# print(f"Average segments per person: {avg_segments:.2f}")
-# print(f"Unique segment counts: {unique_counts}")
 
 # Make data loaders for each
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
-test_loader = DataLoader(test_data, batch_size=BATCH_SIZE, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 
-"""Visulise first image as a sanity check"""
-data_iter = iter(train_loader)
-images, labels = next(data_iter)
+"""Visualise first image as a sanity check"""
+# data_iter = iter(train_loader)
+# images, labels = next(data_iter)
 
-# look at the first image
-img = images[0].squeeze(0)  # remove batch & channel dims
-label = labels[0].item()
+# # look at the first image
+# img = images[0, 0]  # remove batch & channel dims
+# label = labels[0].item()
 
-img = img * 0.5 + 0.5 # un-normalise
+# img = img * 0.5 + 0.5 # un-normalise
 
-# Convert to numpy and plot
-plt.imshow(img.numpy(), cmap='gray')
-plt.savefig(SAMPLE_IMAGE_FILENAME)
-print(f"Label {label}")
+# # Convert to numpy and plot
+# plt.imshow(img.squeeze(0).numpy(), cmap='gray')
+# plt.savefig(SAMPLE_IMAGE_FILENAME)
+# print(f"Label {label}")

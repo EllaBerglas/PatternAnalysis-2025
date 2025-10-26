@@ -7,12 +7,12 @@ BATCH_SIZE = 16
 
 LEARNING_RATE = 1e-4
 WEIGHT_DECAY = 1e-4
-EPOCHS = 2
+EPOCHS = 5
 
-MODEL_FILENAME = "./models/model_pre_data/E20_06374.pth"
+MODEL_FILENAME = "20Chan_E5.pth"
 
 MODEL_CONFIG = {
-    "in_chans": 1,
+    "in_chans": 20,
     "num_classes": 2,
     "depths": [3, 3, 9, 3],
     "dims": [96, 192, 384, 768]
