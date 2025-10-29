@@ -8,14 +8,14 @@ from collections import defaultdict
 from PIL import Image # type: ignore
 import torch # type: ignore
 from torchvision import transforms, datasets # type: ignore
-from torch.utils.data import DataLoader, random_split, Subset, Dataset  # type: ignore
+from torch.utils.data import DataLoader, random_split, ConcatDataset, Dataset  # type: ignore
 from sklearn.model_selection import train_test_split # type: ignore 
 import matplotlib # type: ignore 
 matplotlib.use("Agg") # to work in wsl (no ability to display)
 import matplotlib.pyplot as plt  # type: ignore
 
 from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME, \
-        NORMALISATION_M, NORMALISATION_SD, RANDOM_STATE
+        NORMALISATION_M, NORMALISATION_SD, RANDOM_STATE, AUGMENTED_DS
 
 
 # reduce image size, convert to tensor, and then normalise
@@ -27,15 +27,29 @@ transform = transforms.Compose([
 ])
 
 # a transform with different data transformations is used for better generalisation
+# train_transform = transforms.Compose([
+#     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
+#     transforms.Grayscale(num_output_channels=1),
+#     transforms.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)),
+#     transforms.ColorJitter(brightness=0.15, contrast=0.15),  # change brightness and contrast
+#     transforms.ToTensor(),
+#     transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]),
+#     transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a small rectangal region
+# ])
+
 train_transform = transforms.Compose([
     transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
     transforms.Grayscale(num_output_channels=1),
-    transforms.RandomAffine(degrees=10, translate=(0.05, 0.05), scale=(0.95, 1.05)),
-    transforms.ColorJitter(brightness=0.15, contrast=0.15),  # change brightness and contrast
+    transforms.RandomApply([
+        transforms.RandomRotation(10),
+        transforms.RandomAffine(0, translate=(0.1, 0.1), scale=(0.9, 1.1))
+    ], p=0.6),
+    transforms.RandomHorizontalFlip(p=0.5),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2),
     transforms.ToTensor(),
     transforms.Normalize(mean=[NORMALISATION_M], std=[NORMALISATION_SD]),
-    transforms.RandomErasing(p=0.1, scale=(0.02, 0.05))  # erases a small rectangal region
 ])
+
 
 # Get Images
 train_val_data = datasets.ImageFolder(root=TRAIN_DIR, transform=None) # do transform in class
@@ -103,9 +117,43 @@ class PersonDataset(Dataset):
         volume = torch.stack(slices, dim=0) # Stack the slices into (20, H, W)
         return volume, label
 
-train_dataset = PersonDataset(train_person_ids, train_val_person_to_slices, train_val_person_labels, train_transform)
-val_dataset = PersonDataset(val_person_ids, train_val_person_to_slices, train_val_person_labels, transform)
-test_dataset = PersonDataset(test_person_ids, test_person_to_slices, test_person_labels, transform)
+train_dataset = PersonDataset(
+    train_person_ids, 
+    train_val_person_to_slices, 
+    train_val_person_labels, 
+    transform
+)
+val_dataset = PersonDataset(
+    val_person_ids, 
+    train_val_person_to_slices, 
+    train_val_person_labels, 
+    transform
+)
+test_dataset = PersonDataset(
+    test_person_ids, 
+    test_person_to_slices, 
+    test_person_labels, 
+    transform
+)
+
+if AUGMENTED_DS:
+    # augment 50% of the training dataset as additional inputs
+    np.random.seed(RANDOM_STATE)
+    augmented_person_ids = np.random.choice(
+        train_person_ids, 
+        size=int(len(train_person_ids) * 0.5), 
+        replace=False
+    ).tolist()
+
+    train_dataset_augmented = PersonDataset(
+        augmented_person_ids,
+        train_val_person_to_slices, 
+        train_val_person_labels, 
+        train_transform
+    )
+
+    # Combine both datasets
+    train_dataset = ConcatDataset([train_dataset_base, train_dataset_augmented])
 
 # sanity check, this should be the number of patients in each
 print(f"train size {len(train_dataset)}")
@@ -151,6 +199,20 @@ def visualise_image(train_loader):
 
 #visualise_image(train_loader)
 
+def check_normalisation(loader):
+    data_iter = iter(loader)
+    images, labels = next(data_iter)
+
+    print(f"Images shape: {images.shape}")
+    print(f"Batch dtype: {images.dtype}")
+    print(f"  Min pixel value: {images.min().item():.4f}")
+    print(f"  Max pixel value: {images.max().item():.4f}")
+
+    sample = images[0, 0]  
+    print(f"Sample slice min/max: {sample.min().item():.4f}, {sample.max().item():.4f}")
+
+#check_normalisation(test_loader)
+
 """Ensure there are no patients in bott the test and train set"""
 train_set = set(train_person_ids)
 test_set = set(test_person_ids)
@@ -159,3 +221,8 @@ if overlap: # there are overlapping
     print("there are overlapping patient id's in the test and train set")
     print(f"overlap: {overlap}") 
     sys.exit(1)
+
+"""count the number of samples for each"""
+ad_count = sum(1 for pid in train_person_ids if train_val_person_labels[pid] == 0)
+nc_count = sum(1 for pid in train_person_ids if train_val_person_labels[pid] == 1)
+print(f"Train AD: {ad_count}, NC: {nc_count}")
