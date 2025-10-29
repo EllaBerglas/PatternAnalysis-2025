@@ -6,18 +6,19 @@ from collections import defaultdict
 import os
 from dataset import test_loader
 import torch # type: ignore
-from parameters import MODEL_FILENAME
+#from parameters import MODEL_FILENAME
 from tqdm import tqdm # type: ignore
 import numpy as np # type: ignore
 from modules import ConvNeXt
 from parameters import MODEL_CONFIG, COMPILE
-
+from sklearn.metrics import confusion_matrix, classification_report  # type: ignore
 
 def eval_accuracy(model, device):
     all_labels = []
     all_preds = []
     model.eval()
-    print(f"Loaded model: {MODEL_FILENAME}")
+    print(f"Loaded model")
+    class_names = ["AD", "NC"]
 
     with torch.no_grad():
         for (volumes, labels) in tqdm(test_loader, desc="Test Set"):
@@ -36,7 +37,18 @@ def eval_accuracy(model, device):
     test_accuracy = np.mean(all_labels == all_preds)
     print(f"Test Accuracy: {test_accuracy:.4f}")
 
+    cm = confusion_matrix(all_labels, all_preds)
+    print("\nConfusion Matrix:")
+    print(cm)
+
+    print("\nClassification Report:")
+    print(classification_report(all_labels, all_preds, target_names=class_names))
+
+
+
 def main():
+    MODEL_FILENAME = f"./models/100E_2_weights/20Chan_100_SMALL.pthE94"
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(device)
 
