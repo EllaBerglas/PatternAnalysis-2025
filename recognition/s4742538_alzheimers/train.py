@@ -42,9 +42,6 @@ train_accs =  []
 val_losses = []
 val_accs = []
 
-# test_losses = []
-# test_accs = []
-
 # for saving the best model
 best_val_acc = 0.0
 best_val_loss = float("inf")
@@ -111,34 +108,6 @@ for epoch in tqdm(range(EPOCHS)):
     scheduler.step(avg_val_loss)
     current_lr = optimiser.param_groups[0]['lr']
 
-
-    # epoch_test_loss = 0.0
-    # test_correct = 0
-    # test_total = 0
-    # model.eval()
-
-    # # evaluate with validation set after every epoch
-    # with torch.no_grad():
-    #     for batch_id, (image, label) in enumerate(test_loader):
-    #         image = image.to(device)
-    #         label = label.to(device).float().unsqueeze(1)
-
-    #         output = model(image)
-    #         loss = criterion(output, label)
-
-    #         epoch_test_loss += loss.item()
-
-    #         #_, predicted = torch.max(output, 1)
-    #         predicted = (torch.sigmoid(output) > 0.5).float()
-    #         test_correct += (predicted == label).sum().item()
-    #         test_total += label.size(0)
-            
-    # avg_test_loss = epoch_test_loss / len(test_loader)
-    # #test_losses.append(avg_test_loss)
-
-    # test_acc = test_correct / test_total
-    # test_accs.append(test_acc)
-
     # check if this is the best model so far
     if val_acc >= best_val_acc:  
         best_val_acc = val_acc
@@ -146,9 +115,6 @@ for epoch in tqdm(range(EPOCHS)):
         best_epoch = epoch + 1
         torch.save(model.state_dict(), (MODEL_FILENAME + f"E{epoch}"))
         print(f"model saved E {best_epoch}, best_val_acc: {best_val_acc:.3f}")
-    
-    # print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f},  Val Loss: {avg_val_loss:.4f}, \
-    #       Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}, Test Acc: {test_acc:.3f}")
     
     print(f"Epoch:{epoch+1}/{EPOCHS}, Train Loss: {avg_train_loss:.4f},  Val Loss: {avg_val_loss:.4f}, \
           Train Acc: {train_acc:.3f}, Val Acc: {val_acc:.3f}")
@@ -178,7 +144,7 @@ plt.ylabel('Accuracy')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)
 
-# save
+# save plots
 plt.tight_layout()
 plt.savefig("training_accuracy_loss.png")
 plt.close()

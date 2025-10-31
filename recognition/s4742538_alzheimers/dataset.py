@@ -18,7 +18,7 @@ import matplotlib # type: ignore
 matplotlib.use("Agg") # to work in wsl (no ability to display)
 import matplotlib.pyplot as plt  # type: ignore
 
-from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, SAMPLE_IMAGE_FILENAME, \
+from parameters import TRAIN_DIR, TEST_DIR, CHANNELS, IMAGE_SIZE, BATCH_SIZE, \
         NORMALISATION_M, NORMALISATION_SD, RANDOM_STATE, AUGMENTED_DS, AUG_PROB, CHECKS
 
 # reduce image size, convert to tensor, and then normalise
@@ -200,7 +200,7 @@ def visualise_image(train_loader):
 
     # Convert to numpy and plot
     plt.imshow(img.squeeze(0).numpy(), cmap='gray')
-    plt.savefig(SAMPLE_IMAGE_FILENAME)
+    plt.savefig("./sample_image.png")
     print(f"Label of figure {label}")
 
 def check_normalisation(loader):
