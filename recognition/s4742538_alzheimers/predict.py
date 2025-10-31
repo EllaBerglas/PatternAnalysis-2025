@@ -11,10 +11,11 @@ from tqdm import tqdm # type: ignore
 import numpy as np # type: ignore
 from modules import ConvNeXt
 import matplotlib.pyplot as plt # type: ignore
-from parameters import MODEL_CONFIG, COMPILE
-from sklearn.metrics import confusion_matrix, classification_report  # type: ignore
-
-THRESHOLD = 0.70
+from parameters import MODEL_CONFIG, COMPILE, MODEL_FILENAME, THRESHOLD
+from sklearn.metrics import (confusion_matrix,  # type: ignore
+                             classification_report,
+                             ConfusionMatrixDisplay, 
+                             roc_curve, auc ) # type: ignore
 
 def eval_accuracy(model, device):
     all_labels = []
@@ -73,15 +74,31 @@ def eval_accuracy(model, device):
     print("\nConfusion Matrix:")
     print(cm)
 
+    # Plot confusion matrix as an image
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=class_names)
+    fig, ax = plt.subplots(figsize=(5, 4))
+    disp.plot(cmap=plt.cm.Blues, ax=ax, colorbar=False)
+    plt.title("Confusion Matrix")
+    plt.savefig("./confusion_matrix.png", bbox_inches="tight")
+    plt.close()
+
     print("\nClassification Report:")
     print(classification_report(all_labels, all_preds, target_names=class_names))
 
-    # roc curve
-    # precision recall curve
-
-
-# MODEL_FILENAME = "./drive/MyDrive/Colab Notebooks/20Chan_bceloss_100_SMALL.pthE95"
-MODEL_FILENAME = f"./final_runs/100E_20C_BCE_augment_clip_120.pthE68"
+    # ROC
+    fpr, tpr, _ = roc_curve(all_labels, all_probs)
+    roc_auc = auc(fpr, tpr)
+    plt.figure(figsize=(6, 5))
+    plt.plot(fpr, tpr, label=f"ROC curve (AUC = {roc_auc:.2f})")
+    plt.plot([0, 1], [0, 1], "k--")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("Receiver Operating Characteristic (ROC) Curve")
+    plt.legend(loc="lower right")
+    plt.grid(True)
+    plt.savefig("./roc_curve.png", bbox_inches="tight")
+    plt.close()
+    print(f"Saved ROC curve as 'roc_curve.png' (AUC={roc_auc:.4f})")
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
