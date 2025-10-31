@@ -2,3 +2,9 @@
 **/data/
 **/models
 test.log
+**/sliding_window
+**/mixup
+**/augmentation
+**/augment_final_runs
+**/final_runs
+**/model/
